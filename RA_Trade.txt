@@ -58,6 +58,15 @@ getMA(src, length) =>
          mav == "ZLEMA" ? Zlema_Func(src, length) :
          mav == "TSF" ? Tsf_Func(src, length) : na
 
+// WaveTrend Oscillator Calculations
+ap = hlc3
+esa = ema(ap, wt_n1)
+d = ema(abs(ap - esa), wt_n1)
+ci = (ap - esa) / (0.015 * d)
+tci = ema(ci, wt_n2)
+wt1 = tci
+wt2 = sma(wt1, 4)
+
 // Strateji Hesaplamaları
 MAvg = getMA(src, length)
 fark = MAvg * percent * 0.01
@@ -74,15 +83,18 @@ dir := dir == -1 and MAvg > shortStopPrev ? 1 : dir == 1 and MAvg < longStopPrev
 MT = dir==1 ? longStop: shortStop
 OTT = MAvg > MT ? MT*(200+percent)/200 : MT*(200-percent)/200
 
-plot(OTT, title="BugRA", color=color.rgb(251, 126, 9))
+// Alım Koşulu - Kapanış fiyatı OTT'den büyük ve wt1 wt2'den büyükse
+longEntryCondition = close > OTT and wt1 > wt2
 
-// Alım ve Satım Koşulları
-longCondition = crossover(src, OTT) and isDateInRange()
-shortCondition = crossunder(src, OTT) and isDateInRange()
+// Satım Koşulu - Kapanış fiyatı OTT'den küçük ve wt1 wt2'den küçükse
+longExitCondition = close < OTT and wt1 < wt2
 
-// Strateji Giriş ve Çıkış Emirleri
-if (longCondition)
+// Strateji Giriş Emri
+if (longEntryCondition)
     strategy.entry("Long", strategy.long)
 
-if (shortCondition)
+// Strateji Çıkış Emri
+if (longExitCondition)
     strategy.close("Long")
+
+plot(OTT, title="BugRA", color=color.rgb(251, 126, 9))
