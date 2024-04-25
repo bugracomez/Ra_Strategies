@@ -1,0 +1,70 @@
+import numpy as np
+import pandas as pd
+import yfinance as yf
+import scipy.signal
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+symbol = "EREGL.IS"
+start_date = "2022-01-01"
+end_date = "2024-04-24"
+
+def predict_stock_performance(symbol, start_date, end_date):
+    data = yf.download(symbol, start=start_date, end=end_date)
+    data['Return'] = data['Close'].pct_change()
+    data['sine_value'] = np.sin(2 * np.pi * data['Return'])
+
+    # Find the peaks and troughs in the sine wave
+    peaks, _ = scipy.signal.find_peaks(data['sine_value'])
+    troughs, _ = scipy.signal.find_peaks(-data['sine_value'])
+
+    # Calculate wavelengths
+    turning_points = np.sort(np.concatenate((peaks, troughs)))
+    wavelengths = np.diff(data.index[turning_points])
+
+    # Find the best performance period
+    best_period = data['Close'].idxmax()
+    one_year_ago = best_period - pd.DateOffset(years=1)
+
+    # Calculate the average wavelength during the best performance period
+    best_period_wavelengths = wavelengths[(data.index[turning_points[:-1]] >= one_year_ago) & (data.index[turning_points[:-1]] <= best_period)]
+    best_period_avg_wavelength = np.mean(best_period_wavelengths)
+
+    # Calculate the current wavelength
+    current_wavelength = data.index[-1] - data.index[turning_points[-1]]
+
+    # Compare the current wavelength with the average wavelength during the best performance period
+    wavelength_ratio = current_wavelength / best_period_avg_wavelength
+
+    if wavelength_ratio > 1.2:
+        print(f"Predicted performance for {symbol}: Poor")
+    elif wavelength_ratio < 0.8:
+        print(f"Predicted performance for {symbol}: Good")
+    else:
+        print(f"Predicted performance for {symbol}: Neutral")
+
+    print(f"Best performance period start: {one_year_ago}")
+    print(f"Best performance period end: {best_period}")
+    print(f"Current wavelength start: {data.index[turning_points[-1]]}")
+    print(f"Current wavelength end: {data.index[-1]}")
+
+    # Plot the sine wave
+    fig, ax = plt.subplots(figsize=(1920/80, 1080/80), dpi=80)
+    ax.plot(data.index, data['sine_value'], label='Sine wave')
+
+    # Plot the best performance period
+    ax.axvline(one_year_ago, color='r', linestyle='--', label='Best performance period start')
+    ax.axvline(best_period, color='r', linestyle='--', label='Best performance period end')
+
+    # Plot the current wavelength
+    ax.axvline(data.index[turning_points[-1]], color='g', linestyle='--', label='Current wavelength start')
+    ax.axvline(data.index[-1], color='g', linestyle='--', label='Current wavelength end')
+
+    # Customize the plot
+    ax.set_title(f"{symbol} Sine Wave and Wavelengths")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Sine Value")
+    ax.legend()
+    plt.show()
+
+predict_stock_performance(symbol, start_date, end_date)
